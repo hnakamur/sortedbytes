@@ -11,8 +11,10 @@ package keybytes
 import (
 	"bytes"
 	"database/sql"
+	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -30,8 +32,9 @@ const (
 )
 
 var errUnpexptedTypeCode = errors.New("unexpected type code")
+var errValueOutOfRange = errors.New("value out of range")
 
-// AppendNullString appends a NullString value to dst.
+// AppendNullString appends a sql.NullString value to dst.
 func AppendNullString(dst []byte, value sql.NullString) []byte {
 	if value.Valid {
 		return AppendString(dst, value.String)
@@ -53,7 +56,7 @@ func AppendString(dst []byte, value string) []byte {
 	}
 }
 
-// TakeString takes a NullString value from b and returns it and the rest of b.
+// TakeString takes a sql.NullString value from b and returns it and the rest of b.
 func TakeNullString(b []byte) (value sql.NullString, rest []byte, err error) {
 	var c byte
 	c, rest, err = takeTypeCode(b)
@@ -111,21 +114,104 @@ func takeStringValue(src []byte) (value string, rest []byte, err error) {
 	}
 }
 
+// AppendNullInt32 appends a NullInt32 value to dst.
+func AppendNullInt32(dst []byte, value sql.NullInt32) []byte {
+	if value.Valid {
+		return AppendInt32(dst, value.Int32)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendInt32 appends an int32 value to dst.
+func AppendInt32(dst []byte, value int32) []byte {
+	if value == 0 {
+		return append(dst, typeCodeIntZero)
+	}
+
+	var b [4]byte
+	if value > 0 {
+		binary.BigEndian.PutUint32(b[:], uint32(value))
+		return append(append(dst, typeCodePositiveInt32), b[:]...)
+	}
+
+	binary.BigEndian.PutUint32(b[:], math.MaxUint32-uint32(-value))
+	return append(append(dst, typeCodeNegativeInt32), b[:]...)
+}
+
+// TakeNullInt32 takes a sql.NullInt32 value from b and returns it and the rest of b.
+func TakeNullInt32(b []byte) (value sql.NullInt32, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v int32
+	v, rest, err = takeInt32Value(c, rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullInt32{Valid: true, Int32: v}, rest, nil
+}
+
+// TakeInt32 takes an int32 value from b and returns it and the rest of b.
+func TakeInt32(b []byte) (value int32, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return 0, b, err
+	}
+	value, rest, err = takeInt32Value(c, rest)
+	if err != nil {
+		return 0, b, err
+	}
+	return value, rest, nil
+}
+
+func takeInt32Value(c byte, b []byte) (value int32, rest []byte, err error) {
+	switch c {
+	case typeCodeIntZero:
+		return 0, b, nil
+	case typeCodePositiveInt32:
+		if len(b) < 4 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := binary.BigEndian.Uint32(b[:4])
+		if v > math.MaxInt32 {
+			return 0, nil, errValueOutOfRange
+		}
+		return int32(v), b[4:], nil
+	case typeCodeNegativeInt32:
+		if len(b) < 4 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := math.MaxUint32 - binary.BigEndian.Uint32(b[:4])
+		if v > -math.MinInt32 {
+			return 0, nil, errValueOutOfRange
+		}
+		return -int32(v), b[4:], nil
+	default:
+		return value, nil, errUnpexptedTypeCode
+	}
+}
+
 func expectTypeCode(b []byte, typeCode byte) (rest []byte, err error) {
 	var c byte
 	c, rest, err = takeTypeCode(b)
 	if err != nil {
-		return b, err
+		return nil, err
 	}
 	if c != typeCode {
-		return b, errUnpexptedTypeCode
+		return nil, errUnpexptedTypeCode
 	}
 	return rest, nil
 }
 
 func takeTypeCode(b []byte) (typeCode byte, rest []byte, err error) {
 	if len(b) < 1 {
-		return 0, b, io.ErrUnexpectedEOF
+		return 0, nil, io.ErrUnexpectedEOF
 	}
 	return b[0], b[1:], nil
 }
