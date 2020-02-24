@@ -345,6 +345,65 @@ func takeFloat64Value(b []byte) (value float64, rest []byte, err error) {
 	return math.Float64frombits(v), b[8:], nil
 }
 
+// AppendNullBool appends a NullBool value to dst.
+func AppendNullBool(dst []byte, value sql.NullBool) []byte {
+	if value.Valid {
+		return AppendBool(dst, value.Bool)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendBool appends a bool value to dst.
+func AppendBool(dst []byte, value bool) []byte {
+	if value {
+		return append(dst, typeCodeTrue)
+	}
+	return append(dst, typeCodeFalse)
+}
+
+// TakeNullBool takes a sql.NullBool value from b and returns it and the rest of b.
+func TakeNullBool(b []byte) (value sql.NullBool, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v bool
+	v, rest, err = takeBoolValue(c, rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullBool{Valid: true, Bool: v}, rest, nil
+}
+
+// TakeBool takes an bool value from b and returns it and the rest of b.
+func TakeBool(b []byte) (value bool, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return false, b, err
+	}
+	value, rest, err = takeBoolValue(c, rest)
+	if err != nil {
+		return false, b, err
+	}
+	return value, rest, nil
+}
+
+func takeBoolValue(c byte, b []byte) (value bool, rest []byte, err error) {
+	switch c {
+	case typeCodeTrue:
+		return true, b, nil
+	case typeCodeFalse:
+		return false, b, nil
+	default:
+		return value, nil, errUnpexptedTypeCode
+	}
+}
+
 func expectTypeCode(b []byte, typeCode byte) (rest []byte, err error) {
 	var c byte
 	c, rest, err = takeTypeCode(b)

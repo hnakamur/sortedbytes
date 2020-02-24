@@ -11,36 +11,6 @@ import (
 )
 
 func TestAppendNullString(t *testing.T) {
-	t.Run("roundtrip", func(t *testing.T) {
-		testCases := []sql.NullString{
-			{Valid: false, String: ""},
-			{Valid: true, String: ""},
-			{Valid: true, String: "foo"},
-			{Valid: true, String: "F\u00d4O\u0000bar"},
-			{Valid: true, String: "\u0000foo"},
-			{Valid: true, String: "foo\u0000"},
-			{Valid: true, String: "f\x00\x00oo"},
-			{Valid: true, String: "\x00"},
-			{Valid: true, String: "\x00\x00"},
-			{Valid: true, String: "\xff"},
-			{Valid: true, String: "\xff\xff"},
-			{Valid: true, String: "\x00\xff"},
-			{Valid: true, String: "\x00\x00\xff\xff"},
-		}
-		for i, input := range testCases {
-			b := keybytes.AppendNullString([]byte(nil), input)
-			s, rest, err := keybytes.TakeNullString(b)
-			if err != nil {
-				t.Errorf("case %d: got error: %s", i, err)
-			}
-			if got, want := s, input; !reflect.DeepEqual(got, want) {
-				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
-			}
-			if got, want := len(rest), 0; got != want {
-				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
-			}
-		}
-	})
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
 			a, b sql.NullString
@@ -73,7 +43,74 @@ func TestAppendNullString(t *testing.T) {
 	})
 }
 
+func TestTakeNullString(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		testCases := []sql.NullString{
+			{Valid: false, String: ""},
+			{Valid: true, String: ""},
+			{Valid: true, String: "foo"},
+			{Valid: true, String: "F\u00d4O\u0000bar"},
+			{Valid: true, String: "\u0000foo"},
+			{Valid: true, String: "foo\u0000"},
+			{Valid: true, String: "f\x00\x00oo"},
+			{Valid: true, String: "\x00"},
+			{Valid: true, String: "\x00\x00"},
+			{Valid: true, String: "\xff"},
+			{Valid: true, String: "\xff\xff"},
+			{Valid: true, String: "\x00\xff"},
+			{Valid: true, String: "\x00\x00\xff\xff"},
+		}
+		for i, input := range testCases {
+			b := keybytes.AppendNullString([]byte(nil), input)
+			s, rest, err := keybytes.TakeNullString(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := s, input; !reflect.DeepEqual(got, want) {
+				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
+			}
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x02"),
+			[]byte("\x02foo"),
+			[]byte("\x02\x00\xffa"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeNullString(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
+}
+
 func TestAppendString(t *testing.T) {
+	t.Run("order", func(t *testing.T) {
+		testCases := []struct {
+			a, b string
+		}{
+			{a: "", b: "\x00"},
+			{a: "", b: "a"},
+			{a: "a", b: "a\x00"},
+			{a: "bar", b: "bb"},
+		}
+		for i, tc := range testCases {
+			a := keybytes.AppendString([]byte(nil), tc.a)
+			b := keybytes.AppendString([]byte(nil), tc.b)
+			if got, want := bytes.Compare(a, b), -1; got != want {
+				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=0x%x, b=0x%x",
+					i, got, want, a, b)
+			}
+		}
+	})
+}
+
+func TestTakeString(t *testing.T) {
 	t.Run("roundtrip", func(t *testing.T) {
 		testCases := []string{
 			"",
@@ -103,53 +140,22 @@ func TestAppendString(t *testing.T) {
 			}
 		}
 	})
-	t.Run("order", func(t *testing.T) {
-		testCases := []struct {
-			a, b string
-		}{
-			{a: "", b: "\x00"},
-			{a: "", b: "a"},
-			{a: "a", b: "a\x00"},
-			{a: "bar", b: "bb"},
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x02"),
+			[]byte("\x02foo"),
+			[]byte("\x02\x00\xffa"),
 		}
-		for i, tc := range testCases {
-			a := keybytes.AppendString([]byte(nil), tc.a)
-			b := keybytes.AppendString([]byte(nil), tc.b)
-			if got, want := bytes.Compare(a, b), -1; got != want {
-				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=0x%x, b=0x%x",
-					i, got, want, a, b)
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeString(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
 			}
 		}
 	})
 }
 
 func TestAppendNullInt32(t *testing.T) {
-	t.Run("roundtrip", func(t *testing.T) {
-		testCases := []sql.NullInt32{
-			{Valid: false, Int32: 0},
-			{Valid: true, Int32: 0},
-			{Valid: true, Int32: math.MinInt32},
-			{Valid: true, Int32: math.MinInt32 + 1},
-			{Valid: true, Int32: -1},
-			{Valid: true, Int32: 0},
-			{Valid: true, Int32: 1},
-			{Valid: true, Int32: math.MaxInt32 - 1},
-			{Valid: true, Int32: math.MaxInt32},
-		}
-		for i, input := range testCases {
-			b := keybytes.AppendNullInt32([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullInt32(b)
-			if err != nil {
-				t.Errorf("case %d: got error: %s", i, err)
-			}
-			if got, want := v, input; !reflect.DeepEqual(got, want) {
-				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
-			}
-			if got, want := len(rest), 0; got != want {
-				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
-			}
-		}
-	})
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
 			a, b sql.NullInt32
@@ -206,31 +212,50 @@ func TestAppendNullInt32(t *testing.T) {
 	})
 }
 
-func TestAppendInt32(t *testing.T) {
+func TestTakeNullInt32(t *testing.T) {
 	t.Run("roundtrip", func(t *testing.T) {
-		testCases := []int32{
-			math.MinInt32,
-			math.MinInt32 + 1,
-			-1,
-			0,
-			1,
-			math.MaxInt32 - 1,
-			math.MaxInt32,
+		testCases := []sql.NullInt32{
+			{Valid: false, Int32: 0},
+			{Valid: true, Int32: 0},
+			{Valid: true, Int32: math.MinInt32},
+			{Valid: true, Int32: math.MinInt32 + 1},
+			{Valid: true, Int32: -1},
+			{Valid: true, Int32: 0},
+			{Valid: true, Int32: 1},
+			{Valid: true, Int32: math.MaxInt32 - 1},
+			{Valid: true, Int32: math.MaxInt32},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendInt32([]byte(nil), input)
-			v, rest, err := keybytes.TakeInt32(b)
+			b := keybytes.AppendNullInt32([]byte(nil), input)
+			v, rest, err := keybytes.TakeNullInt32(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
-			if got, want := v, input; got != want {
-				t.Errorf("case %d: string unmatch: got=%q, want=%q", i, got, want)
+			if got, want := v, input; !reflect.DeepEqual(got, want) {
+				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
 			}
 			if got, want := len(rest), 0; got != want {
 				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
 			}
 		}
 	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x19"),
+			[]byte("\x19\x01\x02\x03"),
+			[]byte("\x19\x80\x00\x00\x00"),
+			[]byte("\x0f\x7f\xff\xff\xfe"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeNullInt32(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
+}
+
+func TestAppendInt32(t *testing.T) {
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
 			a, b int32
@@ -256,33 +281,50 @@ func TestAppendInt32(t *testing.T) {
 	})
 }
 
-func TestAppendNullInt64(t *testing.T) {
+func TestTakeInt32(t *testing.T) {
 	t.Run("roundtrip", func(t *testing.T) {
-		testCases := []sql.NullInt64{
-			{Valid: false, Int64: 0},
-			{Valid: true, Int64: 0},
-			{Valid: true, Int64: math.MinInt64},
-			{Valid: true, Int64: math.MinInt64 + 1},
-			{Valid: true, Int64: -1},
-			{Valid: true, Int64: 0},
-			{Valid: true, Int64: 1},
-			{Valid: true, Int64: math.MaxInt64 - 1},
-			{Valid: true, Int64: math.MaxInt64},
+		testCases := []int32{
+			math.MinInt32,
+			math.MinInt32 + 1,
+			-1,
+			0,
+			1,
+			math.MaxInt32 - 1,
+			math.MaxInt32,
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullInt64([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullInt64(b)
+			b := keybytes.AppendInt32([]byte(nil), input)
+			v, rest, err := keybytes.TakeInt32(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
-			if got, want := v, input; !reflect.DeepEqual(got, want) {
-				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
+			if got, want := v, input; got != want {
+				t.Errorf("case %d: string unmatch: got=%q, want=%q", i, got, want)
 			}
 			if got, want := len(rest), 0; got != want {
 				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
 			}
 		}
 	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x19"),
+			[]byte("\x0f"),
+			[]byte("\x19\x01\x02\x03"),
+			[]byte("\x0f\x01\x02\x03"),
+			[]byte("\x19\x80\x00\x00\x00"),
+			[]byte("\x0f\x7f\xff\xff\xfe"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeInt32(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
+}
+
+func TestAppendNullInt64(t *testing.T) {
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
 			a, b sql.NullInt64
@@ -339,31 +381,52 @@ func TestAppendNullInt64(t *testing.T) {
 	})
 }
 
-func TestAppendInt64(t *testing.T) {
+func TestTakeNullInt64(t *testing.T) {
 	t.Run("roundtrip", func(t *testing.T) {
-		testCases := []int64{
-			math.MinInt64,
-			math.MinInt64 + 1,
-			-1,
-			0,
-			1,
-			math.MaxInt64 - 1,
-			math.MaxInt64,
+		testCases := []sql.NullInt64{
+			{Valid: false, Int64: 0},
+			{Valid: true, Int64: 0},
+			{Valid: true, Int64: math.MinInt64},
+			{Valid: true, Int64: math.MinInt64 + 1},
+			{Valid: true, Int64: -1},
+			{Valid: true, Int64: 0},
+			{Valid: true, Int64: 1},
+			{Valid: true, Int64: math.MaxInt64 - 1},
+			{Valid: true, Int64: math.MaxInt64},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendInt64([]byte(nil), input)
-			v, rest, err := keybytes.TakeInt64(b)
+			b := keybytes.AppendNullInt64([]byte(nil), input)
+			v, rest, err := keybytes.TakeNullInt64(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
-			if got, want := v, input; got != want {
-				t.Errorf("case %d: string unmatch: got=%q, want=%q", i, got, want)
+			if got, want := v, input; !reflect.DeepEqual(got, want) {
+				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
 			}
 			if got, want := len(rest), 0; got != want {
 				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
 			}
 		}
 	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x0c"),
+			[]byte("\x1c"),
+			[]byte("\x0c\x01\x02\x03\x04\x05\x06\x07"),
+			[]byte("\x1c\x01\x02\x03\x04\x05\x06\x07"),
+			[]byte("\x0c\x7f\xff\xff\xff\xff\xff\xff\xfe"),
+			[]byte("\x1c\x80\x00\x00\x00\x00\x00\x00\x00"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeNullInt64(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
+}
+
+func TestAppendInt64(t *testing.T) {
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
 			a, b int64
@@ -389,42 +452,50 @@ func TestAppendInt64(t *testing.T) {
 	})
 }
 
-func TestAppendNullFloat64(t *testing.T) {
+func TestTakeInt64(t *testing.T) {
 	t.Run("roundtrip", func(t *testing.T) {
-		testCases := []sql.NullFloat64{
-			{Valid: false, Float64: 0},
-			{Valid: true, Float64: math.NaN()},
-			{Valid: true, Float64: math.Inf(1)},
-			{Valid: true, Float64: -math.MaxFloat64},
-			{Valid: true, Float64: -1.5},
-			{Valid: true, Float64: -0.1},
-			{Valid: true, Float64: -math.SmallestNonzeroFloat64},
-			{Valid: true, Float64: math.Float64frombits(0x8000_0000_0000_0000)},
-			{Valid: true, Float64: 0},
-			{Valid: true, Float64: math.SmallestNonzeroFloat64},
-			{Valid: true, Float64: 0.1},
-			{Valid: true, Float64: 1.5},
-			{Valid: true, Float64: math.MaxFloat64},
-			{Valid: true, Float64: math.Inf(0)},
+		testCases := []int64{
+			math.MinInt64,
+			math.MinInt64 + 1,
+			-1,
+			0,
+			1,
+			math.MaxInt64 - 1,
+			math.MaxInt64,
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullFloat64([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullFloat64(b)
+			b := keybytes.AppendInt64([]byte(nil), input)
+			v, rest, err := keybytes.TakeInt64(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
-			if got, want := v, input; got.Valid && want.Valid {
-				if math.Float64bits(got.Float64) != math.Float64bits(want.Float64) {
-					t.Errorf("case %d: float64 unmatch: got=%v, want=%v", i, got, want)
-				}
-			} else if got.Valid != want.Valid {
-				t.Errorf("case %d: valid unmatch: got=%v, want=%v", i, got, want)
+			if got, want := v, input; got != want {
+				t.Errorf("case %d: string unmatch: got=%q, want=%q", i, got, want)
 			}
 			if got, want := len(rest), 0; got != want {
 				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
 			}
 		}
 	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x0c"),
+			[]byte("\x1c"),
+			[]byte("\x0c\x01\x02\x03\x04\x05\x06\x07"),
+			[]byte("\x1c\x01\x02\x03\x04\x05\x06\x07"),
+			[]byte("\x0c\x7f\xff\xff\xff\xff\xff\xff\xfe"),
+			[]byte("\x1c\x80\x00\x00\x00\x00\x00\x00\x00"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeInt64(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
+}
+
+func TestAppendNullFloat64(t *testing.T) {
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
 			a, b sql.NullFloat64
@@ -501,7 +572,76 @@ func TestAppendNullFloat64(t *testing.T) {
 	})
 }
 
+func TestTakeNullFloat64(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		testCases := []sql.NullFloat64{
+			{Valid: false, Float64: 0},
+			{Valid: true, Float64: math.NaN()},
+			{Valid: true, Float64: math.Inf(1)},
+			{Valid: true, Float64: -math.MaxFloat64},
+			{Valid: true, Float64: -1.5},
+			{Valid: true, Float64: -0.1},
+			{Valid: true, Float64: -math.SmallestNonzeroFloat64},
+			{Valid: true, Float64: math.Float64frombits(0x8000_0000_0000_0000)},
+			{Valid: true, Float64: 0},
+			{Valid: true, Float64: math.SmallestNonzeroFloat64},
+			{Valid: true, Float64: 0.1},
+			{Valid: true, Float64: 1.5},
+			{Valid: true, Float64: math.MaxFloat64},
+			{Valid: true, Float64: math.Inf(0)},
+		}
+		for i, input := range testCases {
+			b := keybytes.AppendNullFloat64([]byte(nil), input)
+			v, rest, err := keybytes.TakeNullFloat64(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := v, input; got.Valid && want.Valid {
+				if math.Float64bits(got.Float64) != math.Float64bits(want.Float64) {
+					t.Errorf("case %d: float64 unmatch: got=%v, want=%v", i, got, want)
+				}
+			} else if got.Valid != want.Valid {
+				t.Errorf("case %d: valid unmatch: got=%v, want=%v", i, got, want)
+			}
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+}
+
 func TestAppendFloat64(t *testing.T) {
+	t.Run("order", func(t *testing.T) {
+		testCases := []struct {
+			a, b float64
+		}{
+			{a: math.Inf(-1), b: -math.MaxFloat64},
+			{a: -math.MaxFloat64, b: math.Nextafter(-math.MaxFloat64, 0)},
+			{a: -2, b: -1},
+			{a: -1, b: 0},
+			{a: 0, b: 1},
+			{a: -1, b: 1},
+			{a: -2, b: 1},
+			{a: 1, b: 2},
+			{a: math.Nextafter(math.MaxFloat64, 0), b: math.MaxFloat64},
+			{a: math.MaxFloat64, b: math.Inf(1)},
+			{a: math.Inf(-1), b: math.Inf(1)},
+			{a: math.MaxFloat64, b: math.NaN()},
+			{a: math.Inf(1), b: math.NaN()},
+			{a: math.Inf(-1), b: math.NaN()},
+		}
+		for i, tc := range testCases {
+			a := keybytes.AppendFloat64([]byte(nil), tc.a)
+			b := keybytes.AppendFloat64([]byte(nil), tc.b)
+			if got, want := bytes.Compare(a, b), -1; got != want {
+				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, tc.a=%v, tc.b=%v, a=0x%x, b=0x%x",
+					i, got, want, tc.a, tc.b, a, b)
+			}
+		}
+	})
+}
+
+func TestTakeFloat64(t *testing.T) {
 	t.Run("roundtrip", func(t *testing.T) {
 		testCases := []float64{
 			math.NaN(),
@@ -532,31 +672,117 @@ func TestAppendFloat64(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestAppendNullBool(t *testing.T) {
 	t.Run("order", func(t *testing.T) {
 		testCases := []struct {
-			a, b float64
+			a, b sql.NullBool
 		}{
-			{a: math.Inf(-1), b: -math.MaxFloat64},
-			{a: -math.MaxFloat64, b: math.Nextafter(-math.MaxFloat64, 0)},
-			{a: -2, b: -1},
-			{a: -1, b: 0},
-			{a: 0, b: 1},
-			{a: -1, b: 1},
-			{a: -2, b: 1},
-			{a: 1, b: 2},
-			{a: math.Nextafter(math.MaxFloat64, 0), b: math.MaxFloat64},
-			{a: math.MaxFloat64, b: math.Inf(1)},
-			{a: math.Inf(-1), b: math.Inf(1)},
-			{a: math.MaxFloat64, b: math.NaN()},
-			{a: math.Inf(1), b: math.NaN()},
-			{a: math.Inf(-1), b: math.NaN()},
+			{
+				a: sql.NullBool{Valid: false, Bool: false},
+				b: sql.NullBool{Valid: true, Bool: false},
+			},
+			{
+				a: sql.NullBool{Valid: false, Bool: false},
+				b: sql.NullBool{Valid: true, Bool: true},
+			},
+			{
+				a: sql.NullBool{Valid: true, Bool: false},
+				b: sql.NullBool{Valid: true, Bool: true},
+			},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendFloat64([]byte(nil), tc.a)
-			b := keybytes.AppendFloat64([]byte(nil), tc.b)
+			a := keybytes.AppendNullBool([]byte(nil), tc.a)
+			b := keybytes.AppendNullBool([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
-				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, tc.a=%v, tc.b=%v, a=0x%x, b=0x%x",
-					i, got, want, tc.a, tc.b, a, b)
+				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%+v, b=%+v",
+					i, got, want, a, b)
+			}
+		}
+	})
+}
+
+func TestTakeNullBool(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		testCases := []sql.NullBool{
+			{Valid: false, Bool: false},
+			{Valid: true, Bool: false},
+			{Valid: true, Bool: true},
+		}
+		for i, input := range testCases {
+			b := keybytes.AppendNullBool([]byte(nil), input)
+			v, rest, err := keybytes.TakeNullBool(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := v, input; !reflect.DeepEqual(got, want) {
+				t.Errorf("case %d: string unmatch: got=%+v, want=%+v", i, got, want)
+			}
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x02"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeNullBool(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
+}
+
+func TestAppendBool(t *testing.T) {
+	t.Run("order", func(t *testing.T) {
+		testCases := []struct {
+			a, b bool
+		}{
+			{a: false, b: true},
+		}
+		for i, tc := range testCases {
+			a := keybytes.AppendBool([]byte(nil), tc.a)
+			b := keybytes.AppendBool([]byte(nil), tc.b)
+			if got, want := bytes.Compare(a, b), -1; got != want {
+				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%v, b=%v",
+					i, got, want, a, b)
+			}
+		}
+	})
+}
+
+func TestTakeBool(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		testCases := []bool{
+			false,
+			true,
+		}
+		for i, input := range testCases {
+			b := keybytes.AppendBool([]byte(nil), input)
+			v, rest, err := keybytes.TakeBool(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := v, input; got != want {
+				t.Errorf("case %d: string unmatch: got=%v, want=%v", i, got, want)
+			}
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\xff"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeBool(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
 			}
 		}
 	})
