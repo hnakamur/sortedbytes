@@ -75,3 +75,105 @@ func FuzzTakeNullInt32(data []byte) int {
 	}
 	return 1
 }
+
+func FuzzTakeInt64(data []byte) int {
+	v, rest, err := keybytes.TakeInt64(data)
+	if err != nil {
+		if v != 0 {
+			panic("v != 0 on error")
+		}
+		if !bytes.Equal(rest, data) {
+			panic("!bytes.Equal(rest, data) on error")
+		}
+		return 0
+	}
+	if len(rest) >= len(data) {
+		panic("len(rest) >= len(data) on success")
+	}
+	return 1
+}
+
+func FuzzTakeNullInt64(data []byte) int {
+	v, rest, err := keybytes.TakeNullInt64(data)
+	if err != nil {
+		if !reflect.DeepEqual(v, sql.NullInt64{Valid: false, Int64: 0}) {
+			panic("v != sql.NullInt64{Valid: false, Int64: 0} on error")
+		}
+		if !bytes.Equal(rest, data) {
+			panic("!bytes.Equal(rest, data) on error")
+		}
+		return 0
+	}
+	if len(rest) >= len(data) {
+		panic("len(rest) >= len(data) on success")
+	}
+	return 1
+}
+
+func FuzzTakeFloat64(data []byte) int {
+	v, rest, err := keybytes.TakeFloat64(data)
+	if err != nil {
+		if v != 0 {
+			panic("v != 0 on error")
+		}
+		if !bytes.Equal(rest, data) {
+			panic("!bytes.Equal(rest, data) on error")
+		}
+		return 0
+	}
+	if len(rest) >= len(data) {
+		panic("len(rest) >= len(data) on success")
+	}
+	return 1
+}
+
+func FuzzTakeNullFloat64(data []byte) int {
+	v, rest, err := keybytes.TakeNullFloat64(data)
+	if err != nil {
+		if !reflect.DeepEqual(v, sql.NullFloat64{Valid: false, Float64: 0}) {
+			panic("v != sql.NullFloat64{Valid: false, Float64: 0} on error")
+		}
+		if !bytes.Equal(rest, data) {
+			panic("!bytes.Equal(rest, data) on error")
+		}
+		return 0
+	}
+	if len(rest) >= len(data) {
+		panic("len(rest) >= len(data) on success")
+	}
+	return 1
+}
+
+func FuzzTakeBool(data []byte) int {
+	v, rest, err := keybytes.TakeBool(data)
+	if err != nil {
+		if v != false {
+			panic("v != false on error")
+		}
+		if !bytes.Equal(rest, data) {
+			panic("!bytes.Equal(rest, data) on error")
+		}
+		return 0
+	}
+	if len(rest) >= len(data) {
+		panic("len(rest) >= len(data) on success")
+	}
+	return 1
+}
+
+func FuzzTakeNullBool(data []byte) int {
+	v, rest, err := keybytes.TakeNullBool(data)
+	if err != nil {
+		if !reflect.DeepEqual(v, sql.NullBool{Valid: false, Bool: false}) {
+			panic("v != sql.NullBool{Valid: false, Bool: false} on error")
+		}
+		if !bytes.Equal(rest, data) {
+			panic("!bytes.Equal(rest, data) on error")
+		}
+		return 0
+	}
+	if len(rest) >= len(data) {
+		panic("len(rest) >= len(data) on success")
+	}
+	return 1
+}
