@@ -6,6 +6,10 @@
 // Supported types are
 // bool, int32, int64, float64, string,
 // sql.NulBool, sql.NullInt32, sql.NullInt64, sql.NullFloat64, and sql.NullString.
+//
+// Note time.Time and sql.NullTime are not supported.
+// You can use int64 or sql.NullInt64 for timestamps with time.Time.Unix() or
+// time.Time.UnixNano().
 package keybytes
 
 // The encoding in this package is a subset of the FDB Tuple layer typecodes encoding.
