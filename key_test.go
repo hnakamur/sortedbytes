@@ -608,6 +608,17 @@ func TestTakeNullFloat64(t *testing.T) {
 			}
 		}
 	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x21\x01\x02\x03\x04\x05\x06\x07"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeNullFloat64(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
+			}
+		}
+	})
 }
 
 func TestAppendFloat64(t *testing.T) {
@@ -669,6 +680,17 @@ func TestTakeFloat64(t *testing.T) {
 			}
 			if got, want := len(rest), 0; got != want {
 				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		testCases := [][]byte{
+			[]byte("\x21\x01\x02\x03\x04\x05\x06\x07"),
+		}
+		for i, input := range testCases {
+			_, _, err := keybytes.TakeFloat64(input)
+			if err == nil {
+				t.Errorf("case %d: got no error", i)
 			}
 		}
 	})
