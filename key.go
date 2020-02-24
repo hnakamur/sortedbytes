@@ -2,139 +2,461 @@
 // Two encoded key bytes of two different keys keeps the order
 // so that you can use encoded key bytes for keys in a key-value-store
 // which is capable to do range scans.
+//
+// Supported types are
+// bool, int32, int64, float64, string,
+// sql.NulBool, sql.NullInt32, sql.NullInt64, sql.NullFloat64, and sql.NullString.
+//
+// Note time.Time and sql.NullTime are not supported.
+// You can use int64 or sql.NullInt64 for timestamps with time.Time.Unix() or
+// time.Time.UnixNano().
 package keybytes
+
+// The encoding in this package is a subset of the FDB Tuple layer typecodes encoding.
+// https://github.com/apple/foundationdb/blob/92b41e3562e639e16dbe0142cc479a3304e9c08a/design/tuple.md
+// https://activesphere.com/blog/2018/08/17/order-preserving-serialization
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/binary"
+	"errors"
+	"io"
 	"math"
+	"strings"
 )
 
-// AppendRaw appends a raw bytes value to dst.
-func AppendRaw(dst, value []byte) []byte {
-	return append(dst, value...)
-}
+const (
+	typeCodeNull          = 0x00
+	typeCodeUTF8String    = 0x02
+	typeCodeNegativeInt64 = 0x0C
+	typeCodeNegativeInt32 = 0x0F
+	typeCodeIntZero       = 0x14
+	typeCodePositiveInt32 = 0x19
+	typeCodePositiveInt64 = 0x1C
+	typeCodeFloat64       = 0x21
+	typeCodeFalse         = 0x26
+	typeCodeTrue          = 0x27
+)
 
-// AppendByte appends a byte value to dst.
-func AppendByte(dst []byte, value byte) []byte {
-	return append(dst, value)
-}
+var errUnpexptedTypeCode = errors.New("unexpected type code")
+var errValueOutOfRange = errors.New("value out of range")
 
-// AppendByte appends a byte value to dst for descending order range scan.
-func AppendByteDesc(dst []byte, value byte) []byte {
-	return append(dst, value^math.MaxUint8)
-}
-
-// AppendUint16 appends a uint16 value to dst.
-func AppendUint16(dst []byte, value uint16) []byte {
-	var b [2]byte
-	binary.BigEndian.PutUint16(b[:], value)
-	return append(dst, b[:]...)
-}
-
-// AppendUint16Desc appends a uint16 value to dst for descending order range scan.
-func AppendUint16Desc(dst []byte, value uint16) []byte {
-	var b [2]byte
-	binary.BigEndian.PutUint16(b[:], value^math.MaxUint16)
-	return append(dst, b[:]...)
-}
-
-// AppendUint32 appends a uint32 value to dst.
-func AppendUint32(dst []byte, value uint32) []byte {
-	var b [4]byte
-	binary.BigEndian.PutUint32(b[:], value)
-	return append(dst, b[:]...)
-}
-
-// AppendUint32Desc appends a uint32 value to dst for descending order range scan.
-func AppendUint32Desc(dst []byte, value uint32) []byte {
-	var b [4]byte
-	binary.BigEndian.PutUint32(b[:], value^math.MaxUint32)
-	return append(dst, b[:]...)
-}
-
-// AppendUint64 appends a uint64 value to dst.
-func AppendUint64(dst []byte, value uint64) []byte {
-	var b [8]byte
-	binary.BigEndian.PutUint64(b[:], value)
-	return append(dst, b[:]...)
-}
-
-// AppendUint64Desc appends a uint64 value to dst for descending order range scan.
-func AppendUint64Desc(dst []byte, value uint64) []byte {
-	var b [8]byte
-	binary.BigEndian.PutUint64(b[:], value^math.MaxUint64)
-	return append(dst, b[:]...)
-}
-
-// AppendStringNul appends a string value and a nul byte '\x00' to dst.
-// The value must not contain a nul byte in supposed usage of this function,
-// but ensuring that is caller's responsibility.
-func AppendStringNul(dst []byte, value string) []byte {
-	dst = append(dst, []byte(value)...)
-	return append(dst, '\x00')
-}
-
-// TakeRaw takes the first n bytes from the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than n.
-func TakeRaw(key []byte, n int) (value []byte, rest []byte) {
-	return key[:n], key[n:]
-}
-
-// TakeByte takes the first byte from the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 1.
-func TakeByte(key []byte) (value byte, rest []byte) {
-	return key[0], key[1:]
-}
-
-// TakeByteDesc takes the first byte for descending order range scan from the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 1.
-func TakeByteDesc(key []byte) (value byte, rest []byte) {
-	return key[0] ^ math.MaxUint8, key[1:]
-}
-
-// TakeUint16 takes a uint16 value from the beginning of the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 2.
-func TakeUint16(key []byte) (value uint16, rest []byte) {
-	return binary.BigEndian.Uint16(key[:2]), key[2:]
-}
-
-// TakeUint16Desc takes a uint16 value for descending order range scan from the beginning of the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 2.
-func TakeUint16Desc(key []byte) (value uint16, rest []byte) {
-	return binary.BigEndian.Uint16(key[:2]) ^ math.MaxUint16, key[2:]
-}
-
-// TakeUint32 takes a uint32 value from the beginning of the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 4.
-func TakeUint32(key []byte) (value uint32, rest []byte) {
-	return binary.BigEndian.Uint32(key[:4]), key[4:]
-}
-
-// TakeUint32Desc takes a uint32 value for descending order range scan from the beginning of the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 4.
-func TakeUint32Desc(key []byte) (value uint32, rest []byte) {
-	return binary.BigEndian.Uint32(key[:4])^math.MaxUint32, key[4:]
-}
-
-// TakeUint64 takes a uint64 value from the beginning of the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 8.
-func TakeUint64(key []byte) (value uint64, rest []byte) {
-	return binary.BigEndian.Uint64(key[:8]), key[8:]
-}
-
-// TakeUint64Desc takes a uint64 value for descending order range scan from the beginning of the key and returns it and the rest of the key.
-// It panics if the length of the key is smaller than 4.
-func TakeUint64Desc(key []byte) (value uint64, rest []byte) {
-	return binary.BigEndian.Uint64(key[:8])^math.MaxUint64, key[8:]
-}
-
-// TakeStringNul takes a string value before the first nul byte '\x00' and the first nul byte from the beginning of the key and returns the string and the rest of the key.
-// It panics if the key does not contain a nul byte '\x00'
-func TakeStringNul(key []byte) (value string, rest []byte) {
-	i := bytes.IndexByte(key, '\x00')
-	if i == -1 {
-		panic("a nul byte not found in key")
+// AppendNullString appends a sql.NullString value to dst.
+//
+// You need to store the result of AppendNullString like:
+//     dst = keybytes.AppendNullString(dst, value)
+func AppendNullString(dst []byte, value sql.NullString) []byte {
+	if value.Valid {
+		return AppendString(dst, value.String)
 	}
-	return string(key[:i]), key[i+1:]
+	return append(dst, typeCodeNull)
+}
+
+// AppendString appends a string value to dst.
+//
+// You need to store the result of AppendString like:
+//     dst = keybytes.AppendString(dst, value)
+func AppendString(dst []byte, value string) []byte {
+	dst = append(dst, typeCodeUTF8String)
+	for {
+		i := strings.IndexByte(value, '\x00')
+		if i == -1 {
+			return append(append(dst, value...), '\x00')
+		}
+
+		dst = append(append(dst, value[:i+1]...), '\xFF')
+		value = value[i+1:]
+	}
+}
+
+// TakeString takes a sql.NullString value from b and returns it and the rest of b.
+func TakeNullString(b []byte) (value sql.NullString, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	switch c {
+	case typeCodeNull:
+		return value, b[1:], nil
+	case typeCodeUTF8String:
+		s, rest, err := takeStringValue(rest)
+		if err != nil {
+			return value, b, err
+		}
+		return sql.NullString{Valid: true, String: s}, rest, nil
+	default:
+		return value, b, errUnpexptedTypeCode
+	}
+}
+
+// TakeString takes a string value from b and returns it and the rest of b.
+func TakeString(b []byte) (value string, rest []byte, err error) {
+	rest, err = expectTypeCode(b, typeCodeUTF8String)
+	if err != nil {
+		return "", b, err
+	}
+	value, rest, err = takeStringValue(rest)
+	if err != nil {
+		return "", b, err
+	}
+	return value, rest, nil
+}
+
+func takeStringValue(src []byte) (value string, rest []byte, err error) {
+	var out []byte
+	for {
+		i := bytes.IndexByte(src, '\x00')
+		if i == -1 {
+			return "", nil, io.ErrUnexpectedEOF
+		}
+
+		if i+1 < len(src) && src[i+1] == '\xFF' {
+			if out == nil {
+				out = []byte{}
+			}
+			out = append(out, src[:i+1]...)
+			src = src[i+2:]
+			continue
+		}
+
+		if out == nil {
+			return string(src[:i]), src[i+1:], nil
+		}
+		return string(append(out, src[:i]...)), src[i+1:], nil
+	}
+}
+
+// AppendNullInt32 appends a NullInt32 value to dst.
+//
+// You need to store the result of AppendNullInt32 like:
+//     dst = keybytes.AppendNullInt32(dst, value)
+func AppendNullInt32(dst []byte, value sql.NullInt32) []byte {
+	if value.Valid {
+		return AppendInt32(dst, value.Int32)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendInt32 appends an int32 value to dst.
+//
+// You need to store the result of AppendInt32 like:
+//     dst = keybytes.AppendInt32(dst, value)
+func AppendInt32(dst []byte, value int32) []byte {
+	if value == 0 {
+		return append(dst, typeCodeIntZero)
+	}
+
+	var b [4]byte
+	if value > 0 {
+		binary.BigEndian.PutUint32(b[:], uint32(value))
+		return append(append(dst, typeCodePositiveInt32), b[:]...)
+	}
+
+	binary.BigEndian.PutUint32(b[:], math.MaxUint32-uint32(-value))
+	return append(append(dst, typeCodeNegativeInt32), b[:]...)
+}
+
+// TakeNullInt32 takes a sql.NullInt32 value from b and returns it and the rest of b.
+func TakeNullInt32(b []byte) (value sql.NullInt32, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v int32
+	v, rest, err = takeInt32Value(c, rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullInt32{Valid: true, Int32: v}, rest, nil
+}
+
+// TakeInt32 takes an int32 value from b and returns it and the rest of b.
+func TakeInt32(b []byte) (value int32, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return 0, b, err
+	}
+	value, rest, err = takeInt32Value(c, rest)
+	if err != nil {
+		return 0, b, err
+	}
+	return value, rest, nil
+}
+
+func takeInt32Value(c byte, b []byte) (value int32, rest []byte, err error) {
+	switch c {
+	case typeCodeIntZero:
+		return 0, b, nil
+	case typeCodePositiveInt32:
+		if len(b) < 4 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := binary.BigEndian.Uint32(b[:4])
+		if v > math.MaxInt32 {
+			return 0, nil, errValueOutOfRange
+		}
+		return int32(v), b[4:], nil
+	case typeCodeNegativeInt32:
+		if len(b) < 4 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := math.MaxUint32 - binary.BigEndian.Uint32(b[:4])
+		if v > -math.MinInt32 {
+			return 0, nil, errValueOutOfRange
+		}
+		return -int32(v), b[4:], nil
+	default:
+		return value, nil, errUnpexptedTypeCode
+	}
+}
+
+// AppendNullInt64 appends a NullInt64 value to dst.
+//
+// You need to store the result of AppendNullInt64 like:
+//     dst = keybytes.AppendNullInt64(dst, value)
+func AppendNullInt64(dst []byte, value sql.NullInt64) []byte {
+	if value.Valid {
+		return AppendInt64(dst, value.Int64)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendInt64 appends an int64 value to dst.
+//
+// You need to store the result of AppendInt64 like:
+//     dst = keybytes.AppendInt64(dst, value)
+func AppendInt64(dst []byte, value int64) []byte {
+	if value == 0 {
+		return append(dst, typeCodeIntZero)
+	}
+
+	var b [8]byte
+	if value > 0 {
+		binary.BigEndian.PutUint64(b[:], uint64(value))
+		return append(append(dst, typeCodePositiveInt64), b[:]...)
+	}
+
+	binary.BigEndian.PutUint64(b[:], math.MaxUint64-uint64(-value))
+	return append(append(dst, typeCodeNegativeInt64), b[:]...)
+}
+
+// TakeNullInt64 takes a sql.NullInt64 value from b and returns it and the rest of b.
+func TakeNullInt64(b []byte) (value sql.NullInt64, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v int64
+	v, rest, err = takeInt64Value(c, rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullInt64{Valid: true, Int64: v}, rest, nil
+}
+
+// TakeInt64 takes an int64 value from b and returns it and the rest of b.
+func TakeInt64(b []byte) (value int64, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return 0, b, err
+	}
+	value, rest, err = takeInt64Value(c, rest)
+	if err != nil {
+		return 0, b, err
+	}
+	return value, rest, nil
+}
+
+func takeInt64Value(c byte, b []byte) (value int64, rest []byte, err error) {
+	switch c {
+	case typeCodeIntZero:
+		return 0, b, nil
+	case typeCodePositiveInt64:
+		if len(b) < 8 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := binary.BigEndian.Uint64(b[:8])
+		if v > math.MaxInt64 {
+			return 0, nil, errValueOutOfRange
+		}
+		return int64(v), b[8:], nil
+	case typeCodeNegativeInt64:
+		if len(b) < 8 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := math.MaxUint64 - binary.BigEndian.Uint64(b[:8])
+		if v > -math.MinInt64 {
+			return 0, nil, errValueOutOfRange
+		}
+		return -int64(v), b[8:], nil
+	default:
+		return value, nil, errUnpexptedTypeCode
+	}
+}
+
+// AppendNullFloat64 appends a NullFloat64 value to dst.
+//
+// You need to store the result of AppendNullFloat64 like:
+//     dst = keybytes.AppendNullFloat64(dst, value)
+func AppendNullFloat64(dst []byte, value sql.NullFloat64) []byte {
+	if value.Valid {
+		return AppendFloat64(dst, value.Float64)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendFloat64 appends a float64 value to dst.
+//
+// You need to store the result of AppendFloat64 like:
+//     dst = keybytes.AppendFloat64(dst, value)
+func AppendFloat64(dst []byte, value float64) []byte {
+	v := math.Float64bits(value)
+	if v&0x8000_0000_0000_0000 == 0 {
+		v ^= 0x8000_0000_0000_0000
+	} else {
+		v ^= 0xffff_ffff_ffff_ffff
+	}
+	var b [8]byte
+	binary.BigEndian.PutUint64(b[:], v)
+	return append(append(dst, typeCodeFloat64), b[:]...)
+}
+
+// TakeNullFloat64 takes a sql.NullFloat64 value from b and returns it and the rest of b.
+func TakeNullFloat64(b []byte) (value sql.NullFloat64, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v float64
+	v, rest, err = takeFloat64Value(rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullFloat64{Valid: true, Float64: v}, rest, nil
+}
+
+// TakeFloat64 takes an int64 value from b and returns it and the rest of b.
+func TakeFloat64(b []byte) (value float64, rest []byte, err error) {
+	rest, err = expectTypeCode(b, typeCodeFloat64)
+	if err != nil {
+		return 0, b, err
+	}
+	value, rest, err = takeFloat64Value(rest)
+	if err != nil {
+		return 0, b, err
+	}
+	return value, rest, nil
+}
+
+func takeFloat64Value(b []byte) (value float64, rest []byte, err error) {
+	if len(b) < 8 {
+		return 0, nil, io.ErrUnexpectedEOF
+	}
+	v := binary.BigEndian.Uint64(b[:8])
+	if v&0x8000_0000_0000_0000 != 0 {
+		v ^= 0x8000_0000_0000_0000
+	} else {
+		v ^= 0xffff_ffff_ffff_ffff
+	}
+	return math.Float64frombits(v), b[8:], nil
+}
+
+// AppendNullBool appends a NullBool value to dst.
+//
+// You need to store the result of AppendNullBool like:
+//     dst = keybytes.AppendNullBool(dst, value)
+func AppendNullBool(dst []byte, value sql.NullBool) []byte {
+	if value.Valid {
+		return AppendBool(dst, value.Bool)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendBool appends a bool value to dst.
+//
+// You need to store the result of AppendBool like:
+//     dst = keybytes.AppendBool(dst, value)
+func AppendBool(dst []byte, value bool) []byte {
+	if value {
+		return append(dst, typeCodeTrue)
+	}
+	return append(dst, typeCodeFalse)
+}
+
+// TakeNullBool takes a sql.NullBool value from b and returns it and the rest of b.
+func TakeNullBool(b []byte) (value sql.NullBool, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v bool
+	v, rest, err = takeBoolValue(c, rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullBool{Valid: true, Bool: v}, rest, nil
+}
+
+// TakeBool takes an bool value from b and returns it and the rest of b.
+func TakeBool(b []byte) (value bool, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return false, b, err
+	}
+	value, rest, err = takeBoolValue(c, rest)
+	if err != nil {
+		return false, b, err
+	}
+	return value, rest, nil
+}
+
+func takeBoolValue(c byte, b []byte) (value bool, rest []byte, err error) {
+	switch c {
+	case typeCodeTrue:
+		return true, b, nil
+	case typeCodeFalse:
+		return false, b, nil
+	default:
+		return value, nil, errUnpexptedTypeCode
+	}
+}
+
+func expectTypeCode(b []byte, typeCode byte) (rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return nil, err
+	}
+	if c != typeCode {
+		return nil, errUnpexptedTypeCode
+	}
+	return rest, nil
+}
+
+func takeTypeCode(b []byte) (typeCode byte, rest []byte, err error) {
+	if len(b) < 1 {
+		return 0, nil, io.ErrUnexpectedEOF
+	}
+	return b[0], b[1:], nil
 }
