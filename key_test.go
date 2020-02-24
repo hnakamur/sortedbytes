@@ -388,3 +388,176 @@ func TestAppendInt64(t *testing.T) {
 		}
 	})
 }
+
+func TestAppendNullFloat64(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		testCases := []sql.NullFloat64{
+			{Valid: false, Float64: 0},
+			{Valid: true, Float64: math.NaN()},
+			{Valid: true, Float64: math.Inf(1)},
+			{Valid: true, Float64: -math.MaxFloat64},
+			{Valid: true, Float64: -1.5},
+			{Valid: true, Float64: -0.1},
+			{Valid: true, Float64: -math.SmallestNonzeroFloat64},
+			{Valid: true, Float64: math.Float64frombits(0x8000_0000_0000_0000)},
+			{Valid: true, Float64: 0},
+			{Valid: true, Float64: math.SmallestNonzeroFloat64},
+			{Valid: true, Float64: 0.1},
+			{Valid: true, Float64: 1.5},
+			{Valid: true, Float64: math.MaxFloat64},
+			{Valid: true, Float64: math.Inf(0)},
+		}
+		for i, input := range testCases {
+			b := keybytes.AppendNullFloat64([]byte(nil), input)
+			v, rest, err := keybytes.TakeNullFloat64(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := v, input; got.Valid && want.Valid {
+				if math.Float64bits(got.Float64) != math.Float64bits(want.Float64) {
+					t.Errorf("case %d: float64 unmatch: got=%v, want=%v", i, got, want)
+				}
+			} else if got.Valid != want.Valid {
+				t.Errorf("case %d: valid unmatch: got=%v, want=%v", i, got, want)
+			}
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+	t.Run("order", func(t *testing.T) {
+		testCases := []struct {
+			a, b sql.NullFloat64
+		}{
+			{
+				a: sql.NullFloat64{Valid: false, Float64: 0},
+				b: sql.NullFloat64{Valid: true, Float64: 0},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.Inf(-1)},
+				b: sql.NullFloat64{Valid: true, Float64: -math.MaxFloat64},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: -math.MaxFloat64},
+				b: sql.NullFloat64{Valid: true, Float64: math.Nextafter(-math.MaxFloat64, 0)},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: -2},
+				b: sql.NullFloat64{Valid: true, Float64: -1},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: -1},
+				b: sql.NullFloat64{Valid: true, Float64: 0},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: 0},
+				b: sql.NullFloat64{Valid: true, Float64: 1},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: -1},
+				b: sql.NullFloat64{Valid: true, Float64: 1},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: -2},
+				b: sql.NullFloat64{Valid: true, Float64: 1},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: 1},
+				b: sql.NullFloat64{Valid: true, Float64: 2},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.Nextafter(math.MaxFloat64, 0)},
+				b: sql.NullFloat64{Valid: true, Float64: math.MaxFloat64},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.MaxFloat64},
+				b: sql.NullFloat64{Valid: true, Float64: math.Inf(1)},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.Inf(-1)},
+				b: sql.NullFloat64{Valid: true, Float64: math.Inf(1)},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.MaxFloat64},
+				b: sql.NullFloat64{Valid: true, Float64: math.NaN()},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.Inf(-1)},
+				b: sql.NullFloat64{Valid: true, Float64: math.NaN()},
+			},
+			{
+				a: sql.NullFloat64{Valid: true, Float64: math.Inf(1)},
+				b: sql.NullFloat64{Valid: true, Float64: math.NaN()},
+			},
+		}
+		for i, tc := range testCases {
+			a := keybytes.AppendNullFloat64([]byte(nil), tc.a)
+			b := keybytes.AppendNullFloat64([]byte(nil), tc.b)
+			if got, want := bytes.Compare(a, b), -1; got != want {
+				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, tc.a=%v, tc.b=%v, a=0x%x, b=0x%x",
+					i, got, want, tc.a, tc.b, a, b)
+			}
+		}
+	})
+}
+
+func TestAppendFloat64(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		testCases := []float64{
+			math.NaN(),
+			math.Inf(1),
+			-math.MaxFloat64,
+			-1.5,
+			-0.1,
+			-math.SmallestNonzeroFloat64,
+			math.Float64frombits(0x8000_0000_0000_0000),
+			0,
+			math.SmallestNonzeroFloat64,
+			0.1,
+			1.5,
+			math.MaxFloat64,
+			math.Inf(0),
+		}
+		for i, input := range testCases {
+			b := keybytes.AppendFloat64([]byte(nil), input)
+			v, rest, err := keybytes.TakeFloat64(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := v, input; math.Float64bits(got) != math.Float64bits(want) {
+				t.Errorf("case %d: string unmatch: got=%v, want=%v", i, got, want)
+			}
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+	t.Run("order", func(t *testing.T) {
+		testCases := []struct {
+			a, b float64
+		}{
+			{a: math.Inf(-1), b: -math.MaxFloat64},
+			{a: -math.MaxFloat64, b: math.Nextafter(-math.MaxFloat64, 0)},
+			{a: -2, b: -1},
+			{a: -1, b: 0},
+			{a: 0, b: 1},
+			{a: -1, b: 1},
+			{a: -2, b: 1},
+			{a: 1, b: 2},
+			{a: math.Nextafter(math.MaxFloat64, 0), b: math.MaxFloat64},
+			{a: math.MaxFloat64, b: math.Inf(1)},
+			{a: math.Inf(-1), b: math.Inf(1)},
+			{a: math.MaxFloat64, b: math.NaN()},
+			{a: math.Inf(1), b: math.NaN()},
+			{a: math.Inf(-1), b: math.NaN()},
+		}
+		for i, tc := range testCases {
+			a := keybytes.AppendFloat64([]byte(nil), tc.a)
+			b := keybytes.AppendFloat64([]byte(nil), tc.b)
+			if got, want := bytes.Compare(a, b), -1; got != want {
+				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, tc.a=%v, tc.b=%v, a=0x%x, b=0x%x",
+					i, got, want, tc.a, tc.b, a, b)
+			}
+		}
+	})
+}

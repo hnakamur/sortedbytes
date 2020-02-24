@@ -280,6 +280,71 @@ func takeInt64Value(c byte, b []byte) (value int64, rest []byte, err error) {
 	}
 }
 
+// AppendNullFloat64 appends a NullFloat64 value to dst.
+func AppendNullFloat64(dst []byte, value sql.NullFloat64) []byte {
+	if value.Valid {
+		return AppendFloat64(dst, value.Float64)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendFloat64 appends a float64 value to dst.
+func AppendFloat64(dst []byte, value float64) []byte {
+	v := math.Float64bits(value)
+	if v&0x8000_0000_0000_0000 == 0 {
+		v ^= 0x8000_0000_0000_0000
+	} else {
+		v ^= 0xffff_ffff_ffff_ffff
+	}
+	var b [8]byte
+	binary.BigEndian.PutUint64(b[:], v)
+	return append(append(dst, typeCodeFloat64), b[:]...)
+}
+
+// TakeNullFloat64 takes a sql.NullFloat64 value from b and returns it and the rest of b.
+func TakeNullFloat64(b []byte) (value sql.NullFloat64, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v float64
+	v, rest, err = takeFloat64Value(rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullFloat64{Valid: true, Float64: v}, rest, nil
+}
+
+// TakeFloat64 takes an int64 value from b and returns it and the rest of b.
+func TakeFloat64(b []byte) (value float64, rest []byte, err error) {
+	rest, err = expectTypeCode(b, typeCodeFloat64)
+	if err != nil {
+		return 0, b, err
+	}
+	value, rest, err = takeFloat64Value(rest)
+	if err != nil {
+		return 0, b, err
+	}
+	return value, rest, nil
+}
+
+func takeFloat64Value(b []byte) (value float64, rest []byte, err error) {
+	if len(b) < 8 {
+		return 0, nil, io.ErrUnexpectedEOF
+	}
+	v := binary.BigEndian.Uint64(b[:8])
+	if v&0x8000_0000_0000_0000 != 0 {
+		v ^= 0x8000_0000_0000_0000
+	} else {
+		v ^= 0xffff_ffff_ffff_ffff
+	}
+	return math.Float64frombits(v), b[8:], nil
+}
+
 func expectTypeCode(b []byte, typeCode byte) (rest []byte, err error) {
 	var c byte
 	c, rest, err = takeTypeCode(b)
