@@ -561,3 +561,89 @@ func TestAppendFloat64(t *testing.T) {
 		}
 	})
 }
+
+func TestAppendCompositeKey(t *testing.T) {
+	t.Run("roundtrip", func(t *testing.T) {
+		type key struct {
+			a sql.NullString
+			b sql.NullInt32
+			c sql.NullInt64
+			d sql.NullFloat64
+		}
+		testCases := []key{
+			{
+				a: sql.NullString{Valid: false, String: ""},
+				b: sql.NullInt32{Valid: false, Int32: 0},
+				c: sql.NullInt64{Valid: false, Int64: 0},
+				d: sql.NullFloat64{Valid: false, Float64: 0},
+			},
+			{
+				a: sql.NullString{Valid: true, String: "foo"},
+				b: sql.NullInt32{Valid: true, Int32: 1234},
+				c: sql.NullInt64{Valid: true, Int64: 5678},
+				d: sql.NullFloat64{Valid: true, Float64: 2.3},
+			},
+		}
+		for i, k := range testCases {
+			b := keybytes.AppendNullString([]byte(nil), k.a)
+			b = keybytes.AppendNullInt32(b, k.b)
+			b = keybytes.AppendNullInt64(b, k.c)
+			b = keybytes.AppendNullFloat64(b, k.d)
+
+			var k2 key
+			var rest []byte
+			var err error
+			k2.a, rest, err = keybytes.TakeNullString(b)
+			if err != nil {
+				t.Errorf("case %d: got error: %s", i, err)
+			}
+			if got, want := k2.a, k.a; got.Valid && want.Valid {
+				if got.String != want.String {
+					t.Errorf("case %d .a: string unmatch: got=%v, want=%v", i, got, want)
+				}
+			} else if got.Valid != want.Valid {
+				t.Errorf("case %d .a: valid unmatch: got=%v, want=%v", i, got, want)
+			}
+
+			k2.b, rest, err = keybytes.TakeNullInt32(rest)
+			if err != nil {
+				t.Errorf("case %d .b: got error: %s", i, err)
+			}
+			if got, want := k2.b, k.b; got.Valid && want.Valid {
+				if got.Int32 != want.Int32 {
+					t.Errorf("case %d .b: int32 unmatch: got=%v, want=%v", i, got, want)
+				}
+			} else if got.Valid != want.Valid {
+				t.Errorf("case %d .b: valid unmatch: got=%v, want=%v", i, got, want)
+			}
+
+			k2.c, rest, err = keybytes.TakeNullInt64(rest)
+			if err != nil {
+				t.Errorf("case %d .c: got error: %s", i, err)
+			}
+			if got, want := k2.c, k.c; got.Valid && want.Valid {
+				if got.Int64 != want.Int64 {
+					t.Errorf("case %d .c: int64 unmatch: got=%v, want=%v", i, got, want)
+				}
+			} else if got.Valid != want.Valid {
+				t.Errorf("case %d .c: valid unmatch: got=%v, want=%v", i, got, want)
+			}
+
+			k2.d, rest, err = keybytes.TakeNullFloat64(rest)
+			if err != nil {
+				t.Errorf("case %d .d: got error: %s", i, err)
+			}
+			if got, want := k2.d, k.d; got.Valid && want.Valid {
+				if math.Float64bits(got.Float64) != math.Float64bits(want.Float64) {
+					t.Errorf("case %d .d: float64 unmatch: got=%v, want=%v", i, got, want)
+				}
+			} else if got.Valid != want.Valid {
+				t.Errorf("case %d .d: valid unmatch: got=%v, want=%v", i, got, want)
+			}
+
+			if got, want := len(rest), 0; got != want {
+				t.Errorf("case %d: rest length unmatch: got=%d, want=%d", i, got, want)
+			}
+		}
+	})
+}
