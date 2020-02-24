@@ -197,6 +197,89 @@ func takeInt32Value(c byte, b []byte) (value int32, rest []byte, err error) {
 	}
 }
 
+// AppendNullInt64 appends a NullInt64 value to dst.
+func AppendNullInt64(dst []byte, value sql.NullInt64) []byte {
+	if value.Valid {
+		return AppendInt64(dst, value.Int64)
+	}
+	return append(dst, typeCodeNull)
+}
+
+// AppendInt64 appends an int64 value to dst.
+func AppendInt64(dst []byte, value int64) []byte {
+	if value == 0 {
+		return append(dst, typeCodeIntZero)
+	}
+
+	var b [8]byte
+	if value > 0 {
+		binary.BigEndian.PutUint64(b[:], uint64(value))
+		return append(append(dst, typeCodePositiveInt64), b[:]...)
+	}
+
+	binary.BigEndian.PutUint64(b[:], math.MaxUint64-uint64(-value))
+	return append(append(dst, typeCodeNegativeInt64), b[:]...)
+}
+
+// TakeNullInt64 takes a sql.NullInt64 value from b and returns it and the rest of b.
+func TakeNullInt64(b []byte) (value sql.NullInt64, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return value, b, err
+	}
+	if c == typeCodeNull {
+		return value, b[1:], nil
+	}
+	var v int64
+	v, rest, err = takeInt64Value(c, rest)
+	if err != nil {
+		return value, b, err
+	}
+	return sql.NullInt64{Valid: true, Int64: v}, rest, nil
+}
+
+// TakeInt64 takes an int64 value from b and returns it and the rest of b.
+func TakeInt64(b []byte) (value int64, rest []byte, err error) {
+	var c byte
+	c, rest, err = takeTypeCode(b)
+	if err != nil {
+		return 0, b, err
+	}
+	value, rest, err = takeInt64Value(c, rest)
+	if err != nil {
+		return 0, b, err
+	}
+	return value, rest, nil
+}
+
+func takeInt64Value(c byte, b []byte) (value int64, rest []byte, err error) {
+	switch c {
+	case typeCodeIntZero:
+		return 0, b, nil
+	case typeCodePositiveInt64:
+		if len(b) < 8 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := binary.BigEndian.Uint64(b[:8])
+		if v > math.MaxInt64 {
+			return 0, nil, errValueOutOfRange
+		}
+		return int64(v), b[8:], nil
+	case typeCodeNegativeInt64:
+		if len(b) < 8 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
+		v := math.MaxUint64 - binary.BigEndian.Uint64(b[:8])
+		if v > -math.MinInt64 {
+			return 0, nil, errValueOutOfRange
+		}
+		return -int64(v), b[8:], nil
+	default:
+		return value, nil, errUnpexptedTypeCode
+	}
+}
+
 func expectTypeCode(b []byte, typeCode byte) (rest []byte, err error) {
 	var c byte
 	c, rest, err = takeTypeCode(b)
