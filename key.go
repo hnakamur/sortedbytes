@@ -43,6 +43,9 @@ var errUnpexptedTypeCode = errors.New("unexpected type code")
 var errValueOutOfRange = errors.New("value out of range")
 
 // AppendNullString appends a sql.NullString value to dst.
+//
+// You need to store the result of AppendNullString like:
+//     dst = keybytes.AppendNullString(dst, value)
 func AppendNullString(dst []byte, value sql.NullString) []byte {
 	if value.Valid {
 		return AppendString(dst, value.String)
@@ -51,6 +54,9 @@ func AppendNullString(dst []byte, value sql.NullString) []byte {
 }
 
 // AppendString appends a string value to dst.
+//
+// You need to store the result of AppendString like:
+//     dst = keybytes.AppendString(dst, value)
 func AppendString(dst []byte, value string) []byte {
 	dst = append(dst, typeCodeUTF8String)
 	for {
@@ -123,6 +129,9 @@ func takeStringValue(src []byte) (value string, rest []byte, err error) {
 }
 
 // AppendNullInt32 appends a NullInt32 value to dst.
+//
+// You need to store the result of AppendNullInt32 like:
+//     dst = keybytes.AppendNullInt32(dst, value)
 func AppendNullInt32(dst []byte, value sql.NullInt32) []byte {
 	if value.Valid {
 		return AppendInt32(dst, value.Int32)
@@ -131,6 +140,9 @@ func AppendNullInt32(dst []byte, value sql.NullInt32) []byte {
 }
 
 // AppendInt32 appends an int32 value to dst.
+//
+// You need to store the result of AppendInt32 like:
+//     dst = keybytes.AppendInt32(dst, value)
 func AppendInt32(dst []byte, value int32) []byte {
 	if value == 0 {
 		return append(dst, typeCodeIntZero)
@@ -206,6 +218,9 @@ func takeInt32Value(c byte, b []byte) (value int32, rest []byte, err error) {
 }
 
 // AppendNullInt64 appends a NullInt64 value to dst.
+//
+// You need to store the result of AppendNullInt64 like:
+//     dst = keybytes.AppendNullInt64(dst, value)
 func AppendNullInt64(dst []byte, value sql.NullInt64) []byte {
 	if value.Valid {
 		return AppendInt64(dst, value.Int64)
@@ -214,6 +229,9 @@ func AppendNullInt64(dst []byte, value sql.NullInt64) []byte {
 }
 
 // AppendInt64 appends an int64 value to dst.
+//
+// You need to store the result of AppendInt64 like:
+//     dst = keybytes.AppendInt64(dst, value)
 func AppendInt64(dst []byte, value int64) []byte {
 	if value == 0 {
 		return append(dst, typeCodeIntZero)
@@ -289,6 +307,9 @@ func takeInt64Value(c byte, b []byte) (value int64, rest []byte, err error) {
 }
 
 // AppendNullFloat64 appends a NullFloat64 value to dst.
+//
+// You need to store the result of AppendNullFloat64 like:
+//     dst = keybytes.AppendNullFloat64(dst, value)
 func AppendNullFloat64(dst []byte, value sql.NullFloat64) []byte {
 	if value.Valid {
 		return AppendFloat64(dst, value.Float64)
@@ -297,6 +318,9 @@ func AppendNullFloat64(dst []byte, value sql.NullFloat64) []byte {
 }
 
 // AppendFloat64 appends a float64 value to dst.
+//
+// You need to store the result of AppendFloat64 like:
+//     dst = keybytes.AppendFloat64(dst, value)
 func AppendFloat64(dst []byte, value float64) []byte {
 	v := math.Float64bits(value)
 	if v&0x8000_0000_0000_0000 == 0 {
@@ -354,6 +378,9 @@ func takeFloat64Value(b []byte) (value float64, rest []byte, err error) {
 }
 
 // AppendNullBool appends a NullBool value to dst.
+//
+// You need to store the result of AppendNullBool like:
+//     dst = keybytes.AppendNullBool(dst, value)
 func AppendNullBool(dst []byte, value sql.NullBool) []byte {
 	if value.Valid {
 		return AppendBool(dst, value.Bool)
@@ -362,6 +389,9 @@ func AppendNullBool(dst []byte, value sql.NullBool) []byte {
 }
 
 // AppendBool appends a bool value to dst.
+//
+// You need to store the result of AppendBool like:
+//     dst = keybytes.AppendBool(dst, value)
 func AppendBool(dst []byte, value bool) []byte {
 	if value {
 		return append(dst, typeCodeTrue)
