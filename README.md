@@ -15,5 +15,6 @@ You can use int64 or sql.NullInt64 for timestamps with time.Time.Unix() or
 time.Time.UnixNano().
 
 The encoding in this package is a subset of the FDB Tuple layer typecodes encoding.
-https://github.com/apple/foundationdb/blob/92b41e3562e639e16dbe0142cc479a3304e9c08a/design/tuple.md
-https://activesphere.com/blog/2018/08/17/order-preserving-serialization
+
+* https://github.com/apple/foundationdb/blob/92b41e3562e639e16dbe0142cc479a3304e9c08a/design/tuple.md
+* https://activesphere.com/blog/2018/08/17/order-preserving-serialization
