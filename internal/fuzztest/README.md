@@ -12,7 +12,7 @@ go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-
 Build the fuzz tests in this `fuzztest` directory.
 
 ```
-go-buzz-build
+go-fuzz-build
 ```
 
 Run fuzz tests.

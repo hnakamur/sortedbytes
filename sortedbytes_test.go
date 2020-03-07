@@ -1,4 +1,4 @@
-package keybytes_test
+package sortedbytes_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hnakamur/keybytes"
+	"github.com/hnakamur/sortedbytes"
 )
 
 func TestAppendNullString(t *testing.T) {
@@ -33,8 +33,8 @@ func TestAppendNullString(t *testing.T) {
 			},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendNullString([]byte(nil), tc.a)
-			b := keybytes.AppendNullString([]byte(nil), tc.b)
+			a := sortedbytes.AppendNullString([]byte(nil), tc.a)
+			b := sortedbytes.AppendNullString([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=0x%x, b=0x%x",
 					i, got, want, a, b)
@@ -61,8 +61,8 @@ func TestTakeNullString(t *testing.T) {
 			{Valid: true, String: "\x00\x00\xff\xff"},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullString([]byte(nil), input)
-			s, rest, err := keybytes.TakeNullString(b)
+			b := sortedbytes.AppendNullString([]byte(nil), input)
+			s, rest, err := sortedbytes.TakeNullString(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -81,7 +81,7 @@ func TestTakeNullString(t *testing.T) {
 			[]byte("\x02\x00\xffa"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeNullString(input)
+			_, _, err := sortedbytes.TakeNullString(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -100,8 +100,8 @@ func TestAppendString(t *testing.T) {
 			{a: "bar", b: "bb"},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendString([]byte(nil), tc.a)
-			b := keybytes.AppendString([]byte(nil), tc.b)
+			a := sortedbytes.AppendString([]byte(nil), tc.a)
+			b := sortedbytes.AppendString([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=0x%x, b=0x%x",
 					i, got, want, a, b)
@@ -127,8 +127,8 @@ func TestTakeString(t *testing.T) {
 			"\x00\x00\xff\xff",
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendString([]byte(nil), input)
-			s, rest, err := keybytes.TakeString(b)
+			b := sortedbytes.AppendString([]byte(nil), input)
+			s, rest, err := sortedbytes.TakeString(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -147,7 +147,7 @@ func TestTakeString(t *testing.T) {
 			[]byte("\x02\x00\xffa"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeString(input)
+			_, _, err := sortedbytes.TakeString(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -202,8 +202,8 @@ func TestAppendNullInt32(t *testing.T) {
 			},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendNullInt32([]byte(nil), tc.a)
-			b := keybytes.AppendNullInt32([]byte(nil), tc.b)
+			a := sortedbytes.AppendNullInt32([]byte(nil), tc.a)
+			b := sortedbytes.AppendNullInt32([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%+v, b=%+v",
 					i, got, want, a, b)
@@ -226,8 +226,8 @@ func TestTakeNullInt32(t *testing.T) {
 			{Valid: true, Int32: math.MaxInt32},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullInt32([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullInt32(b)
+			b := sortedbytes.AppendNullInt32([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeNullInt32(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -247,7 +247,7 @@ func TestTakeNullInt32(t *testing.T) {
 			[]byte("\x0f\x7f\xff\xff\xfe"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeNullInt32(input)
+			_, _, err := sortedbytes.TakeNullInt32(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -271,8 +271,8 @@ func TestAppendInt32(t *testing.T) {
 			{a: math.MinInt32, b: math.MaxInt32},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendInt32([]byte(nil), tc.a)
-			b := keybytes.AppendInt32([]byte(nil), tc.b)
+			a := sortedbytes.AppendInt32([]byte(nil), tc.a)
+			b := sortedbytes.AppendInt32([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%d, b=%d",
 					i, got, want, a, b)
@@ -293,8 +293,8 @@ func TestTakeInt32(t *testing.T) {
 			math.MaxInt32,
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendInt32([]byte(nil), input)
-			v, rest, err := keybytes.TakeInt32(b)
+			b := sortedbytes.AppendInt32([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeInt32(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -316,7 +316,7 @@ func TestTakeInt32(t *testing.T) {
 			[]byte("\x0f\x7f\xff\xff\xfe"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeInt32(input)
+			_, _, err := sortedbytes.TakeInt32(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -371,8 +371,8 @@ func TestAppendNullInt64(t *testing.T) {
 			},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendNullInt64([]byte(nil), tc.a)
-			b := keybytes.AppendNullInt64([]byte(nil), tc.b)
+			a := sortedbytes.AppendNullInt64([]byte(nil), tc.a)
+			b := sortedbytes.AppendNullInt64([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%+v, b=%+v",
 					i, got, want, a, b)
@@ -395,8 +395,8 @@ func TestTakeNullInt64(t *testing.T) {
 			{Valid: true, Int64: math.MaxInt64},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullInt64([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullInt64(b)
+			b := sortedbytes.AppendNullInt64([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeNullInt64(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -418,7 +418,7 @@ func TestTakeNullInt64(t *testing.T) {
 			[]byte("\x1c\x80\x00\x00\x00\x00\x00\x00\x00"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeNullInt64(input)
+			_, _, err := sortedbytes.TakeNullInt64(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -442,8 +442,8 @@ func TestAppendInt64(t *testing.T) {
 			{a: math.MinInt64, b: math.MaxInt64},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendInt64([]byte(nil), tc.a)
-			b := keybytes.AppendInt64([]byte(nil), tc.b)
+			a := sortedbytes.AppendInt64([]byte(nil), tc.a)
+			b := sortedbytes.AppendInt64([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%d, b=%d",
 					i, got, want, a, b)
@@ -464,8 +464,8 @@ func TestTakeInt64(t *testing.T) {
 			math.MaxInt64,
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendInt64([]byte(nil), input)
-			v, rest, err := keybytes.TakeInt64(b)
+			b := sortedbytes.AppendInt64([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeInt64(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -487,7 +487,7 @@ func TestTakeInt64(t *testing.T) {
 			[]byte("\x1c\x80\x00\x00\x00\x00\x00\x00\x00"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeInt64(input)
+			_, _, err := sortedbytes.TakeInt64(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -562,8 +562,8 @@ func TestAppendNullFloat64(t *testing.T) {
 			},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendNullFloat64([]byte(nil), tc.a)
-			b := keybytes.AppendNullFloat64([]byte(nil), tc.b)
+			a := sortedbytes.AppendNullFloat64([]byte(nil), tc.a)
+			b := sortedbytes.AppendNullFloat64([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, tc.a=%v, tc.b=%v, a=0x%x, b=0x%x",
 					i, got, want, tc.a, tc.b, a, b)
@@ -591,8 +591,8 @@ func TestTakeNullFloat64(t *testing.T) {
 			{Valid: true, Float64: math.Inf(0)},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullFloat64([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullFloat64(b)
+			b := sortedbytes.AppendNullFloat64([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeNullFloat64(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -613,7 +613,7 @@ func TestTakeNullFloat64(t *testing.T) {
 			[]byte("\x21\x01\x02\x03\x04\x05\x06\x07"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeNullFloat64(input)
+			_, _, err := sortedbytes.TakeNullFloat64(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -642,8 +642,8 @@ func TestAppendFloat64(t *testing.T) {
 			{a: math.Inf(-1), b: math.NaN()},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendFloat64([]byte(nil), tc.a)
-			b := keybytes.AppendFloat64([]byte(nil), tc.b)
+			a := sortedbytes.AppendFloat64([]byte(nil), tc.a)
+			b := sortedbytes.AppendFloat64([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, tc.a=%v, tc.b=%v, a=0x%x, b=0x%x",
 					i, got, want, tc.a, tc.b, a, b)
@@ -670,8 +670,8 @@ func TestTakeFloat64(t *testing.T) {
 			math.Inf(0),
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendFloat64([]byte(nil), input)
-			v, rest, err := keybytes.TakeFloat64(b)
+			b := sortedbytes.AppendFloat64([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeFloat64(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -688,7 +688,7 @@ func TestTakeFloat64(t *testing.T) {
 			[]byte("\x21\x01\x02\x03\x04\x05\x06\x07"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeFloat64(input)
+			_, _, err := sortedbytes.TakeFloat64(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -715,8 +715,8 @@ func TestAppendNullBool(t *testing.T) {
 			},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendNullBool([]byte(nil), tc.a)
-			b := keybytes.AppendNullBool([]byte(nil), tc.b)
+			a := sortedbytes.AppendNullBool([]byte(nil), tc.a)
+			b := sortedbytes.AppendNullBool([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%+v, b=%+v",
 					i, got, want, a, b)
@@ -733,8 +733,8 @@ func TestTakeNullBool(t *testing.T) {
 			{Valid: true, Bool: true},
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendNullBool([]byte(nil), input)
-			v, rest, err := keybytes.TakeNullBool(b)
+			b := sortedbytes.AppendNullBool([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeNullBool(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -751,7 +751,7 @@ func TestTakeNullBool(t *testing.T) {
 			[]byte("\x02"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeNullBool(input)
+			_, _, err := sortedbytes.TakeNullBool(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -767,8 +767,8 @@ func TestAppendBool(t *testing.T) {
 			{a: false, b: true},
 		}
 		for i, tc := range testCases {
-			a := keybytes.AppendBool([]byte(nil), tc.a)
-			b := keybytes.AppendBool([]byte(nil), tc.b)
+			a := sortedbytes.AppendBool([]byte(nil), tc.a)
+			b := sortedbytes.AppendBool([]byte(nil), tc.b)
 			if got, want := bytes.Compare(a, b), -1; got != want {
 				t.Errorf("case %d: compare result unmatch: got=%d, want=%d, a=%v, b=%v",
 					i, got, want, a, b)
@@ -784,8 +784,8 @@ func TestTakeBool(t *testing.T) {
 			true,
 		}
 		for i, input := range testCases {
-			b := keybytes.AppendBool([]byte(nil), input)
-			v, rest, err := keybytes.TakeBool(b)
+			b := sortedbytes.AppendBool([]byte(nil), input)
+			v, rest, err := sortedbytes.TakeBool(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -802,7 +802,7 @@ func TestTakeBool(t *testing.T) {
 			[]byte("\xff"),
 		}
 		for i, input := range testCases {
-			_, _, err := keybytes.TakeBool(input)
+			_, _, err := sortedbytes.TakeBool(input)
 			if err == nil {
 				t.Errorf("case %d: got no error", i)
 			}
@@ -833,15 +833,15 @@ func TestAppendCompositeKey(t *testing.T) {
 			},
 		}
 		for i, k := range testCases {
-			b := keybytes.AppendNullString([]byte(nil), k.a)
-			b = keybytes.AppendNullInt32(b, k.b)
-			b = keybytes.AppendNullInt64(b, k.c)
-			b = keybytes.AppendNullFloat64(b, k.d)
+			b := sortedbytes.AppendNullString([]byte(nil), k.a)
+			b = sortedbytes.AppendNullInt32(b, k.b)
+			b = sortedbytes.AppendNullInt64(b, k.c)
+			b = sortedbytes.AppendNullFloat64(b, k.d)
 
 			var k2 key
 			var rest []byte
 			var err error
-			k2.a, rest, err = keybytes.TakeNullString(b)
+			k2.a, rest, err = sortedbytes.TakeNullString(b)
 			if err != nil {
 				t.Errorf("case %d: got error: %s", i, err)
 			}
@@ -853,7 +853,7 @@ func TestAppendCompositeKey(t *testing.T) {
 				t.Errorf("case %d .a: valid unmatch: got=%v, want=%v", i, got, want)
 			}
 
-			k2.b, rest, err = keybytes.TakeNullInt32(rest)
+			k2.b, rest, err = sortedbytes.TakeNullInt32(rest)
 			if err != nil {
 				t.Errorf("case %d .b: got error: %s", i, err)
 			}
@@ -865,7 +865,7 @@ func TestAppendCompositeKey(t *testing.T) {
 				t.Errorf("case %d .b: valid unmatch: got=%v, want=%v", i, got, want)
 			}
 
-			k2.c, rest, err = keybytes.TakeNullInt64(rest)
+			k2.c, rest, err = sortedbytes.TakeNullInt64(rest)
 			if err != nil {
 				t.Errorf("case %d .c: got error: %s", i, err)
 			}
@@ -877,7 +877,7 @@ func TestAppendCompositeKey(t *testing.T) {
 				t.Errorf("case %d .c: valid unmatch: got=%v, want=%v", i, got, want)
 			}
 
-			k2.d, rest, err = keybytes.TakeNullFloat64(rest)
+			k2.d, rest, err = sortedbytes.TakeNullFloat64(rest)
 			if err != nil {
 				t.Errorf("case %d .d: got error: %s", i, err)
 			}

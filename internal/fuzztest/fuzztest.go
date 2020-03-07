@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"reflect"
 
-	"github.com/hnakamur/keybytes"
+	"github.com/hnakamur/sortedbytes"
 )
 
 func FuzzTakeString(data []byte) int {
-	v, rest, err := keybytes.TakeString(data)
+	v, rest, err := sortedbytes.TakeString(data)
 	if err != nil {
 		if v != "" {
 			panic("v != \"\" on error")
@@ -26,7 +26,7 @@ func FuzzTakeString(data []byte) int {
 }
 
 func FuzzTakeNullString(data []byte) int {
-	v, rest, err := keybytes.TakeNullString(data)
+	v, rest, err := sortedbytes.TakeNullString(data)
 	if err != nil {
 		if !reflect.DeepEqual(v, sql.NullString{Valid: false, String: ""}) {
 			panic("v != sql.NullString{Valid: false, String: \"\"} on error")
@@ -43,7 +43,7 @@ func FuzzTakeNullString(data []byte) int {
 }
 
 func FuzzTakeInt32(data []byte) int {
-	v, rest, err := keybytes.TakeInt32(data)
+	v, rest, err := sortedbytes.TakeInt32(data)
 	if err != nil {
 		if v != 0 {
 			panic("v != 0 on error")
@@ -60,7 +60,7 @@ func FuzzTakeInt32(data []byte) int {
 }
 
 func FuzzTakeNullInt32(data []byte) int {
-	v, rest, err := keybytes.TakeNullInt32(data)
+	v, rest, err := sortedbytes.TakeNullInt32(data)
 	if err != nil {
 		if !reflect.DeepEqual(v, sql.NullInt32{Valid: false, Int32: 0}) {
 			panic("v != sql.NullInt32{Valid: false, Int32: 0} on error")
@@ -77,7 +77,7 @@ func FuzzTakeNullInt32(data []byte) int {
 }
 
 func FuzzTakeInt64(data []byte) int {
-	v, rest, err := keybytes.TakeInt64(data)
+	v, rest, err := sortedbytes.TakeInt64(data)
 	if err != nil {
 		if v != 0 {
 			panic("v != 0 on error")
@@ -94,7 +94,7 @@ func FuzzTakeInt64(data []byte) int {
 }
 
 func FuzzTakeNullInt64(data []byte) int {
-	v, rest, err := keybytes.TakeNullInt64(data)
+	v, rest, err := sortedbytes.TakeNullInt64(data)
 	if err != nil {
 		if !reflect.DeepEqual(v, sql.NullInt64{Valid: false, Int64: 0}) {
 			panic("v != sql.NullInt64{Valid: false, Int64: 0} on error")
@@ -111,7 +111,7 @@ func FuzzTakeNullInt64(data []byte) int {
 }
 
 func FuzzTakeFloat64(data []byte) int {
-	v, rest, err := keybytes.TakeFloat64(data)
+	v, rest, err := sortedbytes.TakeFloat64(data)
 	if err != nil {
 		if v != 0 {
 			panic("v != 0 on error")
@@ -128,7 +128,7 @@ func FuzzTakeFloat64(data []byte) int {
 }
 
 func FuzzTakeNullFloat64(data []byte) int {
-	v, rest, err := keybytes.TakeNullFloat64(data)
+	v, rest, err := sortedbytes.TakeNullFloat64(data)
 	if err != nil {
 		if !reflect.DeepEqual(v, sql.NullFloat64{Valid: false, Float64: 0}) {
 			panic("v != sql.NullFloat64{Valid: false, Float64: 0} on error")
@@ -145,7 +145,7 @@ func FuzzTakeNullFloat64(data []byte) int {
 }
 
 func FuzzTakeBool(data []byte) int {
-	v, rest, err := keybytes.TakeBool(data)
+	v, rest, err := sortedbytes.TakeBool(data)
 	if err != nil {
 		if v != false {
 			panic("v != false on error")
@@ -162,7 +162,7 @@ func FuzzTakeBool(data []byte) int {
 }
 
 func FuzzTakeNullBool(data []byte) int {
-	v, rest, err := keybytes.TakeNullBool(data)
+	v, rest, err := sortedbytes.TakeNullBool(data)
 	if err != nil {
 		if !reflect.DeepEqual(v, sql.NullBool{Valid: false, Bool: false}) {
 			panic("v != sql.NullBool{Valid: false, Bool: false} on error")
